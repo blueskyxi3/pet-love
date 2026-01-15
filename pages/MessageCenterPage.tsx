@@ -3,19 +3,40 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 interface ChatItem {
+  id?: string;
   name: string;
   msg: string;
   time: string;
   unread: boolean;
   img: string;
   action?: () => void;
-  type?: 'approval' | 'default';
+  type?: 'approval' | 'system' | 'default';
 }
 
 const MessageCenterPage: React.FC = () => {
   const navigate = useNavigate();
   const [hasNewNotif, setHasNewNotif] = useState(localStorage.getItem('has_new_notif') === 'true');
-  const isApproved = localStorage.getItem('adoption_status') === 'approved';
+  const [systemNotif, setSystemNotif] = useState<ChatItem | null>(null);
+
+  useEffect(() => {
+    const rawNotif = localStorage.getItem('last_system_notif');
+    if (rawNotif) {
+      const parsed = JSON.parse(rawNotif);
+      setSystemNotif({
+        id: parsed.id,
+        name: parsed.title,
+        msg: parsed.message,
+        time: parsed.time,
+        unread: hasNewNotif,
+        type: parsed.type,
+        img: parsed.icon,
+        action: () => {
+          if (parsed.type === 'approval') navigate('/success/buddy');
+          else navigate('/status/buddy');
+        }
+      });
+    }
+  }, [hasNewNotif, navigate]);
 
   const markAsRead = () => {
     localStorage.removeItem('has_new_notif');
@@ -28,17 +49,8 @@ const MessageCenterPage: React.FC = () => {
     { name: '快乐爪爪庇护所', msg: '感谢您的申请。', time: '周一', unread: false, img: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCByjVCGLQjLbPFer4QL4xN666toHvgOrzaPpeTdYwkw0_OM-9qO1stk2iEi_P5BC6IYWPN_FFqvTAXOJByEDHgwqbw0O-MeiQuuq8rvLI8f9lLT9Lnh4T8bD6vdt-wAxENwZIgB4xE-rDa39gWRMpkmqrFzYEPG7eZB32vMe9snia6jjY32TpoKxsfIvhQr5D8Z0SAUAkXllJ3S-bZbSoMX3MutjxRTyeXmNO5VQfbKz_R1jxXJdorYr0u4qSvybtP0DxQls-Aruo' }
   ];
 
-  const approvalChat: ChatItem = {
-    name: '安心爪爪庇护所',
-    msg: '🎉 恭喜！您的领养申请已通过。Buddy 已经迫不及待要见到你了！点击查看领养证。',
-    time: '刚刚',
-    unread: hasNewNotif,
-    type: 'approval',
-    img: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCK8U4SVqAn6XRMJ-PAdT4YQOjkpvtrlMTuFsJw1WSViiVlP7ttQOT3WnCSmpyvBWOohqAmCPUIWnhHZvSWLUXjxUHU8m3g3549x3ISaZl1WFOWi5zPJMx1e3yWxhFAhOHkJ_BbGmtz42phuA5jyBL7E8HdX6-2e_cQ8MUDl6YuWuPeKfo_NopymuN94GgsRtroBDXN8cXPyj7Y07vkNoskrBIaRU8CakCjTC1Q9jwFSKgCno0ymhW6vcLkm14DkUewsLXblfo3W00',
-    action: () => navigate('/success/buddy')
-  };
-
-  const allChats = isApproved ? [approvalChat, ...baseChats] : baseChats;
+  // Combine logic: System notif always comes first if exists
+  const allChats = systemNotif ? [systemNotif, ...baseChats] : baseChats;
 
   return (
     <div className="flex flex-col h-screen overflow-y-auto no-scrollbar bg-background-light dark:bg-background-dark">
@@ -69,8 +81,8 @@ const MessageCenterPage: React.FC = () => {
             className={`flex items-center gap-4 p-4 rounded-3xl transition-all cursor-pointer border relative ${
               chat.unread 
                 ? 'bg-white dark:bg-surface-dark shadow-md border-primary/20 ring-1 ring-primary/5' 
-                : 'bg-transparent border-transparent hover:bg-black/5'
-            } ${chat.type === 'approval' ? 'bg-gradient-to-r from-primary/5 to-transparent' : ''}`}
+                : 'bg-transparent border-transparent hover:bg-black/5 dark:hover:bg-white/5'
+            } ${chat.type === 'approval' || chat.type === 'system' ? 'bg-gradient-to-r from-primary/5 dark:from-primary/10 to-transparent' : ''}`}
           >
             <div className="relative shrink-0">
               <div className="h-14 w-14 rounded-full bg-cover bg-center border border-slate-100 dark:border-slate-800 shadow-sm" style={{backgroundImage: `url("${chat.img}")`}}></div>
@@ -78,7 +90,12 @@ const MessageCenterPage: React.FC = () => {
             </div>
             <div className="flex flex-col justify-center flex-1 min-w-0">
               <div className="flex justify-between items-baseline mb-1">
-                <p className={`text-base line-clamp-1 ${chat.unread ? 'font-bold text-text-main dark:text-white' : 'font-semibold text-slate-600 dark:text-slate-400'}`}>{chat.name}</p>
+                <div className="flex items-center gap-2">
+                  <p className={`text-base line-clamp-1 ${chat.unread ? 'font-bold text-text-main dark:text-white' : 'font-semibold text-slate-600 dark:text-slate-400'}`}>{chat.name}</p>
+                  {(chat.type === 'approval' || chat.type === 'system') && (
+                    <span className="px-1.5 py-0.5 bg-primary/10 text-primary text-[10px] font-bold rounded uppercase tracking-wider shrink-0">官方</span>
+                  )}
+                </div>
                 <p className={`text-[11px] font-bold shrink-0 ml-2 ${chat.unread ? 'text-primary' : 'text-slate-400'}`}>{chat.time}</p>
               </div>
               <div className="flex justify-between items-center gap-2">
@@ -88,6 +105,11 @@ const MessageCenterPage: React.FC = () => {
             {chat.type === 'approval' && (
               <div className="absolute right-4 bottom-4">
                 <span className="material-symbols-outlined text-primary text-[20px] filled">stars</span>
+              </div>
+            )}
+            {chat.type === 'system' && (
+              <div className="absolute right-4 bottom-4">
+                <span className="material-symbols-outlined text-slate-400 text-[20px]">assignment</span>
               </div>
             )}
           </div>
