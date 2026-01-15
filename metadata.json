@@ -1,0 +1,8 @@
+{
+  "name": "PetLove",
+  "description": "一个温暖的宠物领养社区，连接待领养动物与爱心家庭，提供从发现到成功的全流程领养体验。",
+  "requestFramePermissions": [
+    "camera",
+    "geolocation"
+  ]
+}
